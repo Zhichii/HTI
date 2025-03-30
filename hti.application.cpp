@@ -9,10 +9,12 @@ namespace hti {
 	Application::ExitEvent::ExitEvent(Application* app) : Event(EV_EXIT, [&](Event* ev) {
 		Application::ExitEvent* eev = (Application::ExitEvent*)ev;
 		eev->_app->_should_exit = true;
-		}), _app(app) {
-	}
+		}), _app(app) {}
 
 	Application::Application(): _should_exit(false), _displaying(0), _focus(0) {
+	}
+
+	Application::~Application() {
 	}
 
 	void Application::pushEvent(Event* ev) {

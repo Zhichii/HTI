@@ -40,10 +40,10 @@ namespace hti::i18n {
         this->_languages[name] = Language(chh::toString(chh::readResource(res_name, res_type)));
     }
 #elif CHH_IS_LINUX
-    void lLanguageManager::oadResource(std::string name, size_t res_name, std::string res_type) = delete;
+    void lLanguageManager::loadResource(std::string name, size_t res_name, std::string res_type) = delete;
 #endif
 
-    void LanguageManager::switchLanguage(std::string name) {
+    void LanguageManager::current(std::string name) {
         if (this->_languages.count(name)) {
             this->_current = name;
         }
