@@ -2,13 +2,7 @@
 
 namespace hti::widgets {
 
-	Widget::TextEvent::TextEvent(Widget* widget, i18n::Text text) : Event(EV_TEXT, [&](Event* ev) {
-		Widget::TextEvent* tev = (Widget::TextEvent*)ev;
-		tev->_widget->_text = tev->_text;
-		}), _widget(widget), _text(text) {}
-
 	Widget::Widget(Widget* parent) : _parent(parent) {
-		this->_focus = false;
 		this->_parent = parent;
 		if (this->_parent) {
 			this->_app = this->_parent->_app;
@@ -20,12 +14,18 @@ namespace hti::widgets {
 
 	inline std::string hti::widgets::Widget::onRender() { return ""; }
 
-	i18n::Text Widget::text() const {
+	TextWidget::TextEvent::TextEvent(TextWidget* widget, i18n::Text text) : Event(EV_TEXT, [&](Event* ev) {
+		TextEvent* tev = (TextEvent*)ev;
+		tev->_widget->_text = tev->_text;
+		}), _widget(widget), _text(text) {
+	}
+
+	i18n::Text TextWidget::text() const {
 		return this->_text;
 	}
 
-	void Widget::text(i18n::Text text) {
-		this->_app->pushEvent((Event*)new TextEvent(this, text));
+	void TextWidget::text(i18n::Text text) {
+		this->app()->pushEvent((Event*)new TextEvent(this, text));
 	}
 
 }

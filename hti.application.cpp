@@ -7,7 +7,7 @@ namespace hti {
 	EventFunc Event::func() const { return this->_func; }
 
 	Application::ExitEvent::ExitEvent(Application* app) : Event(EV_EXIT, [&](Event* ev) {
-		Application::ExitEvent* eev = (Application::ExitEvent*)ev;
+		ExitEvent* eev = (ExitEvent*)ev;
 		eev->_app->_should_exit = true;
 		}), _app(app) {}
 

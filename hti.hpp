@@ -10,7 +10,6 @@ namespace hti {
 
         // 语言
         class Language {
-        private:
             std::map<std::string, std::string> _content;
         public:
             Language();
@@ -23,7 +22,6 @@ namespace hti {
 
         // 管理所有的语言
         class LanguageManager {
-        private:
             std::map<std::string, Language> _languages;
             std::string _current;
         public:
@@ -54,7 +52,6 @@ namespace hti {
         // 本地化单个键名
         // 请使用 Text 将多个 LocalizingString 与 std::string 拼接。
         class LocalizingString {
-        private:
             std::string _key;
         public:
             // 从键名初始化
@@ -65,7 +62,6 @@ namespace hti {
 
         // 将多个 LocalizingString 与 std::string 拼接
         class Text {
-        private:
             std::vector<std::variant<LocalizingString, std::string>> _parts;
             mutable std::string _cache;
             mutable std::string _cache_language;
@@ -103,6 +99,8 @@ namespace hti {
     // 事件
     // EventQueue 会自动释放 Event！
     class Event {
+        EventType _type;
+        EventFunc _func;
     public:
         Event(EventType type, EventFunc func = [](Event*){});
         // 获取回调函数
@@ -112,9 +110,6 @@ namespace hti {
         const EventType& type() const {
             return this->_type;
         }
-    private:
-        EventType _type;
-        EventFunc _func;
     };
 
     namespace widgets {
@@ -123,16 +118,6 @@ namespace hti {
 
     // 程序入口
     class Application {
-    public:
-        Application();
-        ~Application();
-        // 加入事件
-        void pushEvent(Event* ev);
-        // 主循环
-        void mainloop();
-        // 退出
-        void exit();
-    private:
         class ExitEvent : Event {
         public:
             ExitEvent(Application* app);
@@ -147,6 +132,15 @@ namespace hti {
         size_t                          _displaying;
         bool                            _should_exit;
         Event* popEvent();
+    public:
+        Application();
+        ~Application();
+        // 加入事件
+        void pushEvent(Event* ev);
+        // 主循环
+        void mainloop();
+        // 退出
+        void exit();
     };
 
     // 控件
@@ -154,27 +148,38 @@ namespace hti {
 
         // 控件基类
         class Widget {
+            Application*        _app;
+            Widget*             _parent;
+            std::list<Widget*>  _children;
         public:
             Widget(Widget* parent);
             ~Widget() {
                 for (auto& i : this->_children) delete i;
             }
+            Application* app() const { return this->_app; }
+            Widget* parent() const { return this->_parent; }
             virtual std::string onRender();
-            i18n::Text text() const;
-            void text(i18n::Text text);
-        private:
+        };
+
+        // 带有文本的控件的基类。
+        class TextWidget : Widget {
             class TextEvent : Event {
             public:
-                TextEvent(Widget* widget, i18n::Text text);
+                TextEvent(TextWidget* widget, i18n::Text text);
             private:
-                Widget* _widget;
+                TextWidget* _widget;
                 i18n::Text _text;
             };
-            Application*        _app;
-            Widget*             _parent;
-            std::list<Widget*>  _children;
-            i18n::Text          _text;
-            bool				_focus;
+            i18n::Text _text;
+        public:
+            i18n::Text text() const;
+            void text(i18n::Text text);
+        };
+
+        // 文本。
+        class Label : TextWidget {
+        public:
+            Label(i18n::Text text);
         };
 
     }
