@@ -146,6 +146,7 @@
     <ClCompile Include="chh.cpp" />
     <ClCompile Include="hti.application.cpp" />
     <ClCompile Include="hti.i18n.cpp" />
+    <ClCompile Include="hti.widgets.label.cpp" />
     <ClCompile Include="hti.widgets.widget.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="include\json\json_reader.cpp" />

@@ -25,23 +25,12 @@ namespace hti::i18n {
 
     LanguageManager::LanguageManager() {
         this->_languages["default"] = Language("{}");
+        this->current("default");
     }
 
     void LanguageManager::load(const std::string& name, const std::string& content) {
         this->_languages[name] = Language(content);
     }
-
-    void LanguageManager::loadFile(const std::string& name, const std::string& file_name) {
-        this->_languages[name] = Language(chh::toString(chh::readFile(file_name)));
-    }
-
-#if CHH_IS_WINDOWS
-    void LanguageManager::loadResource(std::string name, size_t res_name, std::string res_type) {
-        this->_languages[name] = Language(chh::toString(chh::readResource(res_name, res_type)));
-    }
-#elif CHH_IS_LINUX
-    void lLanguageManager::loadResource(std::string name, size_t res_name, std::string res_type) = delete;
-#endif
 
     void LanguageManager::current(std::string name) {
         if (this->_languages.count(name)) {

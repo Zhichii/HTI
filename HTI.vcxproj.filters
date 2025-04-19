@@ -39,6 +39,9 @@
     <ClCompile Include="hti.application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="hti.widgets.label.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chh.hpp">
