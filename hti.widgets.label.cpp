@@ -6,18 +6,20 @@ namespace hti::widgets {
 		: Widget(parent), _text(text) {
 	}
 
+	TextWidget::~TextWidget() = default;
+
 	i18n::Text TextWidget::text() const {
 		return this->_text;
 	}
 
 	void TextWidget::text(i18n::Text text) {
-		this->app()->postEventWithCheck(std::make_shared<LambdaEvent>([self=this, text](Event*) {
+		this->app()->tryPostEvent(std::make_shared<LambdaEvent>([self=this, text](Event*) {
 			self->_text = text;
 			}));
 	}
 
 	Label::Label(Widget* parent, i18n::Text text)
-		: TextWidget(parent, text) {
+		: Widget(parent), TextWidget(parent, text) {
 	}
 
 	std::string Label::onRender(bool focus) {

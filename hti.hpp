@@ -96,7 +96,7 @@ namespace hti {
         EventFunc _action;
     public:
         LambdaEvent(EventFunc action);
-        // 覆写执行函数
+        // 执行函数（Lambda）
         void execute() override;
     };
 
@@ -119,24 +119,44 @@ namespace hti {
             Widget& operator=(const Widget&) = delete;
             // 销毁控件
             // 一并从父控件的 _children 中删除。
-            ~Widget();
+            virtual ~Widget();
             // 获取应用
             Application* app() const;
             // 获取父控件
             Widget* parent() const;
             // 获取子控件
+            // 注意，返回的是副本。
             const std::list<Widget*> children() const;
+            // 是否可以被选中（常量）
+            // 默认返回 false。
+            virtual bool canBeSelected() const;
             // 返回渲染内容
             virtual std::string onRender(bool focus);
             // 处理按键
             virtual bool onKeyPress(char key);
+            // 当添加了一个子控件时
+            virtual void onChildAdd();
+            // 当获得焦点
+            virtual void onFocusGained();
+            // 当焦点没了
+            virtual void onFocusLost();
+        };
+
+        // 可被选中的
+        class SelectableWidget : virtual public Widget {
+        public:
+            SelectableWidget(Widget* parent);
+            // 可被选中
+            // 返回 true。
+            bool canBeSelected() const override;
         };
 
         // 文本控件（基类）
-        class TextWidget : public Widget {
+        class TextWidget : virtual public Widget {
             i18n::Text _text;
         public:
             TextWidget(Widget* parent, i18n::Text text = {});
+            virtual ~TextWidget();
             // 返回文字
             i18n::Text text() const;
             // 设置文字
@@ -147,7 +167,39 @@ namespace hti {
         class Label : public TextWidget {
         public:
             Label(Widget* parent, i18n::Text text = {});
+            // 返回渲染内容
             std::string onRender(bool focus) override;
+        };
+
+        typedef std::function<void(Widget*)> WidFunc;
+
+        // 文本
+        class Button : public TextWidget, public SelectableWidget {
+            WidFunc _action = nullptr;
+        public:
+            Button(Widget* parent, i18n::Text text = {});
+            // 返回渲染内容
+            std::string onRender(bool focus) override;
+            // 绑定回调函数
+            void bind(WidFunc action);
+            // 处理按键
+            bool onKeyPress(char key) override;
+        };
+
+        class List : public SelectableWidget {
+            size_t _style = STYLE_VERTICAL;
+            size_t _index = 0;
+        public:
+            const static size_t STYLE_VERTICAL = 0x0;
+            const static size_t STYLE_HORIZONTAL = 0x1;
+            List(Widget* parent);
+            // 返回渲染内容
+            std::string onRender(bool focus) override;
+            // 处理按键
+            bool onKeyPress(char key) override;
+            // 当添加了一个子控件时
+            // 找到一个能被选中的控件
+            void onChildAdd() override;
         };
 
     }
@@ -178,8 +230,12 @@ namespace hti {
         // 判断调用方是不是主线程
         bool isMainThread() const;
         // 用于工作线程加入事件
-        // 如果调用方是主线程，就直接执行。
-        void postEventWithCheck(std::shared_ptr<Event> event);
+        // 如果调用方是主线程，崩溃。
+        void postEvent(std::shared_ptr<Event> event);
+        // 用于工作线程加入事件
+        // 如果调用方是主线程，直接执行，不同于 postEvent。
+        // 提高代码复用率。
+        void tryPostEvent(std::shared_ptr<Event> event);
 
         /* 控件功能 */
         // 渲染

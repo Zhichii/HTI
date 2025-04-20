@@ -62,6 +62,11 @@ namespace hti {
 #if CHH_IS_WINDOWS
 	Application::~Application() {
 		CloseHandle(this->_console);
+		const auto& childList = this->children();
+		if (!childList.empty()) {
+			delete childList.front();
+		}
+		// 此时再调用 Widget::~Widget() 也没事了。
 	}
 #elif CHH_IS_LINUX
 	Application::~Application() = default;
@@ -71,7 +76,15 @@ namespace hti {
 		return std::this_thread::get_id() == this->_thrd_id;
 	}
 
-	void Application::postEventWithCheck(std::shared_ptr<Event> event) {
+	void Application::postEvent(std::shared_ptr<Event> event) {
+		if (this->isMainThread()) throw std::runtime_error("Will cause deadlock.");
+		else {
+			std::lock_guard<std::mutex> lock(this->_ev_mtx);
+			this->_events.push(event);
+		}
+	}
+
+	void Application::tryPostEvent(std::shared_ptr<Event> event) {
 		if (this->isMainThread()) event->execute();
 		else {
 			std::lock_guard<std::mutex> lock(this->_ev_mtx);
@@ -80,8 +93,11 @@ namespace hti {
 	}
 
 	std::string Application::onRender(bool focus) {
+
+		if (this->isMainThread()) return this->children().front()->onRender(true);
+		
 		std::promise<std::string> prom;
-		this->app()->postEventWithCheck(std::make_shared<LambdaEvent>([self=this, &prom](Event*) {
+		this->postEvent(std::make_shared<LambdaEvent>([self=this, &prom](Event*) {
 			if (self->children().size() != 1) prom.set_value("");
 			else prom.set_value(self->children().front()->onRender(true));
 			}));
@@ -89,8 +105,11 @@ namespace hti {
 	}
 
 	bool Application::onKeyPress(char key) {
+		if (key == 'z' or key == 'Z') this->exit(); // 暂时硬绑定 z 退出。
+		if (this->isMainThread()) return this->children().front()->onKeyPress(key);
+
 		std::promise<bool> prom;
-		this->app()->postEventWithCheck(std::make_shared<LambdaEvent>([self = this, &prom, key](Event*) {
+		this->postEvent(std::make_shared<LambdaEvent>([self = this, &prom, key](Event*) {
 			if (self->children().size() != 1) prom.set_value(false);
 			else prom.set_value(self->children().front()->onKeyPress(key));
 			}));
@@ -112,7 +131,7 @@ namespace hti {
 			if (y >= height - 1) break;
 			switch (i) {
 			default: {
-				if (x >= width); // 下落到换行。
+				if (x >= width); // fallthrough 到换行。
 				else {
 					buffer[x] = i;
 					x++;
@@ -125,7 +144,7 @@ namespace hti {
 				memset(buffer, ' ', width);
 				buffer[width] = 0;
 				y++;
-				// 挺有趣的：y++ 相当于 \n, x=0 相当于 \r.
+				// 挺有趣的：y++ 相当于 \n, x=0 相当于 \r。
 				[[fallthrough]];
 			}
 			case '\r': {
@@ -142,18 +161,25 @@ namespace hti {
 	}
 
 	void hti::Application::mainloop() {
-		this->render();
+		if (!_should_exit) this->render(); // 先渲染。
 		while (!_should_exit) {
-			if (this->processEvent()) this->render(); // 仅有事件更新时刷新。
+			if (this->processEvent()) this->render(); // 有事件时刷新。
 			if (kbhit()) {
 				this->onKeyPress(getch());
+				this->render(); // 处理按键后刷新。
 			}
 			sleep_ms(10);
 		}
 	}
 
 	void Application::exit() {
-		this->postEventWithCheck(std::make_shared<LambdaEvent>([self = this](Event*) {
+
+		if (this->isMainThread()) {
+			this->_should_exit = true;
+			return;
+		}
+
+		this->postEvent(std::make_shared<LambdaEvent>([self = this](Event*) {
 			self->_should_exit = true;
 			}));
 	}
