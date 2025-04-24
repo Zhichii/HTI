@@ -103,15 +103,16 @@ namespace hti {
     // 控件
     namespace widgets {
 
-        class Widget;
-        // 控件（基类）
+        // 控件（抽象类）
         class Widget {
             Application* const _app;
             Widget* const _parent;
             std::list<Widget*> _children;
             std::list<Widget*>::iterator _app_iter;
             std::list<Widget*>::iterator _parent_iter;
+            friend class Application;
         public:
+            // 请使用工厂函数Application::make<T>(args...)。
             Widget(Widget* parent);
             // 禁止深复制。
             Widget(const Widget&) = delete;
@@ -142,19 +143,21 @@ namespace hti {
             virtual void onFocusLost();
         };
 
-        // 可被选中的
+        // 可被选中的（抽象类）
         class SelectableWidget : virtual public Widget {
         public:
+            // 请使用工厂函数Application::make<T>(args...)。
             SelectableWidget(Widget* parent);
             // 可被选中
             // 返回 true。
             bool canBeSelected() const override;
         };
 
-        // 文本控件（基类）
+        // 文本控件（抽象类）
         class TextWidget : virtual public Widget {
             i18n::Text _text;
         public:
+            // 请使用工厂函数Application::make<T>(args...)。
             TextWidget(Widget* parent, i18n::Text text = {});
             virtual ~TextWidget();
             // 返回文字
@@ -166,6 +169,7 @@ namespace hti {
         // 文本
         class Label : public TextWidget {
         public:
+            // 请使用工厂函数Application::make<T>(args...)。
             Label(Widget* parent, i18n::Text text = {});
             // 返回渲染内容
             std::string onRender(bool focus) override;
@@ -174,9 +178,10 @@ namespace hti {
         typedef std::function<void(Widget*)> WidFunc;
 
         // 文本
-        class Button : public TextWidget, public SelectableWidget {
+        class Button : public SelectableWidget, public TextWidget {
             WidFunc _action = nullptr;
         public:
+            // 请使用工厂函数Application::make<T>(args...)。
             Button(Widget* parent, i18n::Text text = {});
             // 返回渲染内容
             std::string onRender(bool focus) override;
@@ -184,6 +189,7 @@ namespace hti {
             void bind(WidFunc action);
             // 处理按键
             bool onKeyPress(char key) override;
+            using SelectableWidget::canBeSelected;
         };
 
         class List : public SelectableWidget {
@@ -192,6 +198,7 @@ namespace hti {
         public:
             const static size_t STYLE_VERTICAL = 0x0;
             const static size_t STYLE_HORIZONTAL = 0x1;
+            // 请使用工厂函数Application::make<T>(args...)。
             List(Widget* parent);
             // 返回渲染内容
             std::string onRender(bool focus) override;
@@ -238,6 +245,22 @@ namespace hti {
         void tryPostEvent(std::shared_ptr<Event> event);
 
         /* 控件功能 */
+        // 安全创建新的控件（工厂函数）。
+        template <typename T, typename... Args>
+        T* make(Widget* parent, Args... args) {
+            if (this->children().size() > 0 && parent == this) {
+                throw std::runtime_error("Application can only have one root child! Use List or other layouts.");
+            }
+            auto* widget = new T(parent, std::forward<Args>(args)...);
+            this->tryPostEvent(std::make_shared<LambdaEvent>([widget](Event*) {
+                widget->_app_iter = widget->_app->_widgets.insert(
+                    widget->_app->_widgets.end(), widget);
+                widget->_parent_iter = widget->_parent->_children.insert(
+                    widget->_parent->_children.end(), widget);
+                widget->_parent->onChildAdd();
+                }));
+            return widget;
+        }
         // 渲染
         void render();
         // 主循环

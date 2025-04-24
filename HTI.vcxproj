@@ -150,10 +150,10 @@
     <ClCompile Include="hti.widgets.label.cpp" />
     <ClCompile Include="hti.widgets.list.cpp" />
     <ClCompile Include="hti.widgets.widget.cpp" />
-    <ClCompile Include="test.cpp" />
     <ClCompile Include="include\json\json_reader.cpp" />
     <ClCompile Include="include\json\json_value.cpp" />
     <ClCompile Include="include\json\json_writer.cpp" />
+    <ClCompile Include="test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chh.hpp" />

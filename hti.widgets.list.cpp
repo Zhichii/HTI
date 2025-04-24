@@ -71,18 +71,16 @@ namespace hti::widgets {
 	void List::onChildAdd() {
 		const auto& childList = this->children();
 		const size_t itemCount = childList.size();
+		if (itemCount <= 1) return;
 		auto selectedItem = childList.begin();
 		std::advance(selectedItem, std::min(this->_index, itemCount - 1));
 		if ((*selectedItem)->canBeSelected()) return;
 		else {
-			size_t idx = this->_index;
-			while (this->_index + 1 < itemCount) {
-				selectedItem++;
-				this->_index++;
-				if ((*selectedItem)->canBeSelected()) return;
+			auto lastItem = childList.end();
+			lastItem--;
+			if ((*lastItem)->canBeSelected()) {
+				this->_index = itemCount - 1;
 			}
-			// 寻找失败。
-			this->_index = idx;
 		}
 	}
 

@@ -3,20 +3,7 @@
 namespace hti::widgets {
 	
 	Widget::Widget(Widget* parent)
-		: _parent(parent), _app(parent ? parent->_app : ((Application*)this)) {
-		if (this->_parent) {
-			this->app()->tryPostEvent(std::make_shared<LambdaEvent>([self=this](Event*) {
-				if (self->_app->children().size() > 0 && self->_parent == self->_app) {
-					throw std::runtime_error("Application can only have one root child!");
-				}
-				self->_app_iter = self->_app->_widgets.insert(
-					self->_app->_widgets.end(), self);
-				self->_parent_iter = self->_parent->_children.insert(
-					self->_parent->_children.end(), self);
-				self->_parent->onChildAdd();
-				}));
-		}
-	}
+		: _parent(parent), _app(parent ? parent->_app : ((Application*)this)) {}
 
 	Widget::~Widget() {
 		this->app()->tryPostEvent(std::make_shared<LambdaEvent>([self = this](Event*) {
