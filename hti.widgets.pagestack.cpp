@@ -91,45 +91,52 @@ namespace hti::widgets {
 		//if (this->_style == STYLE_LEFT_RIGHT) {
 		//	nav = 'a'; con = 'd'; swu = 'w'; swd = 'd';
 		//}
-		if (nav) { this->_pos = 0; return true; }
-		if (con && this->_pages->canBeSelected()) {
-			this->_pos = 1; return true;
-		}
 		if (this->_pos == 0) { // 在导航栏。
 			if (swp && this->_it != this->_navigation.begin()) {
 				this->_it--; this->_pages->selPrev();
+				return true;
 			}
 			if (swn && std::next(this->_it) != this->_navigation.end()) {
 				this->_it++; this->_pages->selNext();
+				return true;
 			}
 		}
 		if (this->_pos == 1) { // 在内容。
-			this->_pages->onKeyPress(key);
+			if (this->_pages->onKeyPress(key)) {
+				return true;
+			}
+		}
+		if (nav && (this->_pos != 0)) { this->_pos = 0; return true; }
+		if (con && (this->_pos != 1) && this->_pages->canBeSelected()) {
+			this->_pos = 1; return true;
 		}
 		return false;
 	}
 
 	std::string PageStack::onRender(bool focus) {
 		std::ostringstream oss;
-		if (focus) oss << "<" << this->text().localize(this->app()->languages()) << ">\n";
-		else oss << " " << this->text().localize(this->app()->languages()) << ">\n";
+		std::string title = this->text().localize(this->app()->languages());
+		if (title != "") {
+			if (focus) oss << "<" << title << ">\n";
+			else oss << "." << title << ".\n";
+		}
 		if (this->_style == STYLE_UP_DOWN) {
 			for (auto i = this->_navigation.begin(); i != this->_navigation.end(); i++) {
 				if (i == this->_it) {
-					if (this->_pos == 0) oss << "[";
+					if (focus && this->_pos == 0) oss << "[";
 					else oss << ".";
 				}
 				else oss << " ";
 				oss << (*i).first.localize(this->app()->languages());
 				if (i == this->_it) {
-					if (this->_pos == 0) oss << "]";
+					if (focus && this->_pos == 0) oss << "]";
 					else oss << ".";
 				}
 				else oss << " ";
 			}
 		}
 		oss << "\n";
-		oss << this->_pages->onRender(focus && this->_pos == 1) << "\n";
+		oss << this->_pages->onRender(focus && this->_pos == 1);
 		return oss.str();
 	}
 

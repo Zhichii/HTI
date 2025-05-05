@@ -157,6 +157,13 @@ namespace hti {
 			}
 		}
 		printf("%s", oss.str().c_str());
+		memset(buffer, ' ', width);
+		buffer[width] = 0;
+		while (true) {
+			if (y >= height - 1) break;
+			printf("%s", buffer);
+			y++;
+		}
 	}
 
 	void hti::Application::mainloop() {
@@ -175,8 +182,13 @@ namespace hti {
 				}
 				this->render(); // 处理按键后刷新。
 			}
-			sleep_ms(10);
+			sleep_ms(15);
 		}
+#if CHH_IS_WINDOWS
+		system("cls");
+#else CHH_IS_LINUX
+		system("clear");
+#endif
 	}
 
 	void Application::exit() {

@@ -1,10 +1,14 @@
-﻿﻿# HTI (HillQiu's Text User Interface)
-**[AI-generated with human review]**
+﻿## Languages
+
+[简体中文](README.SC.md) [繁體中文](README.TC.md)
+
+# HTI (HillQiu's Text User Interface)
+**[⚠️AI-generated with human review]**
 
 A lightweight, thread-safe text-based UI library for building cross-platform terminal applications with modern C++.
 
 ## Important Note
-⚠️ **Application can only have one root child!** Always use a `List` or other layout widget as the root child of Application.
+⚠️ **Application can only have one root child!** Always use a `PageStack`, a `List` or other layout widget as the root child of Application.
 
 ## Quick Start
 

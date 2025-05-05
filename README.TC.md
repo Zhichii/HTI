@@ -1,10 +1,14 @@
+## 語言
+
+[English](README.md) [简体中文](README.SC.md)
+
 # HTI (HillQiu的文字使用者介面)
-**[AI生成，人工審核]**
+**[⚠️AI生成，人工審核]**
 
 一個輕量級、執行緒安全的文字使用者介面庫，用於使用現代C++構建跨平台終端應用程式。
 
 ## 重要提示
-⚠️ **Application只能有一個根子控制項！** 請始終使用`List`或其他佈局控制項作為Application的根子控制項。
+⚠️ **Application只能有一個根子控制項！** 請始終使用`PageStack`、`List`或其他佈局控制項作為Application的根子控制項。
 
 ## 快速入門
 

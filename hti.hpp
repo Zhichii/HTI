@@ -320,8 +320,8 @@ namespace hti {
             //const static size_t STYLE_LEFT_RIGHT = 0x1;
             // 在导航栏目添加一个页面。
             template <typename T, typename... Args>
-            void addPage(i18n::Text name, Args... args) {
-                this->_pages->add<T>((args)...);
+            T* addPage(i18n::Text name, Args... args) {
+                auto* ret = this->_pages->add<T>((args)...);
                 this->app()->tryPostEvent(std::make_shared<LambdaEvent>([self = this, name](Event* ev) {
                     auto it = self->_pages->children_end();
                     it--;
@@ -330,6 +330,7 @@ namespace hti {
                         self->_it = self->_navigation.begin();
                     }
                     }));
+                return ret;
             }
             // 处理按键
             bool onKeyPress(Key key) override;

@@ -1,10 +1,14 @@
-﻿# HTI (HillQiu的文本用户界面)
-**[AI生成，人工审核]**
+﻿## 语言
+
+[English](README.md) [繁體中文](README.TC.md)
+
+# HTI (HillQiu的文本用户界面)
+**[⚠️AI生成，人工审核]**
 
 一个轻量级、线程安全的文本用户界面库，用于使用现代C++构建跨平台终端应用。
 
 ## 重要提示
-⚠️ **Application只能有一个根子控件！** 请始终使用`List`或其他布局控件作为Application的根子控件。
+⚠️ **Application只能有一个根子控件！** 请始终使用`PageStack`、`List`或其他布局控件作为Application的根子控件。
 
 ## 快速入门
 
