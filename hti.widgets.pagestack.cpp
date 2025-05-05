@@ -60,18 +60,11 @@ namespace hti::widgets {
 
 	PageStack::PageStack(Widget* parent, i18n::Text title, Style style)
 		: Widget(parent), TextWidget(parent, title), SelectableWidget(parent) {
-		if (this->app()->isMainThread()) {
-			this->_pages = this->add<Pages>();
-			this->_style = style;
-			this->_it = this->_navigation.end();
-		}
-		else {
-			this->app()->postEvent(std::make_shared<LambdaEvent>([self = this, style](Event* ev) {
-				self->_pages = self->add<Pages>();
-				self->_style = style;
-				self->_it = self->_navigation.end();
-				}));
-		}
+		this->app()->tryPostEvent(std::make_shared<LambdaEvent>([self = this, style](Event* ev) {
+			self->_pages = self->add<Pages>();
+			self->_style = style;
+			self->_it = self->_navigation.end();
+			}));
 	}
 
 	PageStack::~PageStack() {

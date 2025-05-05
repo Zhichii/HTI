@@ -23,8 +23,6 @@
 #include <conio.h>
 #define CHH_IS_WINDOWS 1
 #define CHH_IS_LINUX 0
-#define getch _getch
-#define kbhit _kbhit
 #define sleep_ms Sleep
 #undef max
 #undef min
@@ -35,8 +33,6 @@
 #define CHH_IS_WINDOWS 0
 #define CHH_IS_LINUX 1
 #define sleep_ms usleep
-int getch();
-int kbhit();
 #endif
 
 #include <json/json.h>

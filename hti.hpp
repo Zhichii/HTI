@@ -85,9 +85,12 @@ namespace hti {
     typedef unsigned short Style;
 
     class Key {
-        unsigned short _key;
+        unsigned int _key;
+        unsigned int _keycode;
     public:
-        Key(unsigned short key);
+        Key(unsigned int key = 0, unsigned int keycode = 0);
+        unsigned int key();
+        bool isNone();
         bool isPrev();
         bool isNext();
         bool isPress();
@@ -332,10 +335,10 @@ namespace hti {
                     }));
                 return ret;
             }
-            // 处理按键
-            bool onKeyPress(Key key) override;
             // 返回渲染内容
             std::string onRender(bool focus) override;
+            // 处理按键
+            bool onKeyPress(Key key) override;
         };
 
     }
@@ -351,7 +354,8 @@ namespace hti {
         std::list<widgets::Widget*> _widgets;
         std::list<Widget*>::iterator _focus;
 #if CHH_IS_WINDOWS
-        HANDLE _console;
+        HANDLE _ihandle;
+        HANDLE _ohandle;
 #endif
         /* 语言管理 */
         i18n::LanguageManager _languages;
@@ -361,6 +365,11 @@ namespace hti {
     public:
         Application();
         ~Application();
+
+        /* 其它功能 */
+        // 读取键盘一个按键
+        // 不阻塞，如果没有按键返回Key(0,0)。
+        Key getch();
 
         /* 线程安全 */
         // 判断调用方是不是主线程

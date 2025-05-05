@@ -37,7 +37,8 @@ namespace hti {
 #if CHH_IS_WINDOWS
 	Application::Application()
 		: Widget(NULL), _should_exit(false), _thrd_id(std::this_thread::get_id()) {
-		this->_console = GetStdHandle(STD_OUTPUT_HANDLE);
+		this->_ihandle = GetStdHandle(STD_INPUT_HANDLE);
+		this->_ohandle = GetStdHandle(STD_OUTPUT_HANDLE);
 		HWND hWnd = GetConsoleWindow();
 		char buffer[129]; GetClassNameA(hWnd, buffer, 128);
 		if (std::string(buffer) == "ConsoleWindowClass") {
@@ -46,11 +47,12 @@ namespace hti {
 			return;
 		}
 		CONSOLE_CURSOR_INFO cci;
-		GetConsoleCursorInfo(this->_console, &cci);
+		GetConsoleCursorInfo(this->_ohandle, &cci);
 		cci.bVisible = false;
-		SetConsoleCursorInfo(this->_console, &cci);
+		SetConsoleCursorInfo(this->_ohandle, &cci);
 		setlocale(LC_ALL, "zh_cn.utf8");
 		SetConsoleOutputCP(CP_UTF8);
+		SetConsoleCP(CP_UTF8);
 	}
 #elif CHH_IS_LINUX
 	Application::Application()
@@ -61,7 +63,8 @@ namespace hti {
 
 #if CHH_IS_WINDOWS
 	Application::~Application() {
-		CloseHandle(this->_console);
+		CloseHandle(this->_ihandle);
+		CloseHandle(this->_ohandle);
 		const auto& childList = this->children();
 		if (!childList.empty()) {
 			delete childList.front();
@@ -71,6 +74,32 @@ namespace hti {
 #elif CHH_IS_LINUX
 	Application::~Application() = default;
 #endif
+
+	Key Application::getch() {
+#if CHH_IS_WINDOWS
+		INPUT_RECORD input;
+		DWORD count;
+		if (PeekConsoleInput(this->_ihandle, &input, 1, &count)) {
+			if (count == 0) return Key();
+			ReadConsoleInput(this->_ihandle, &input, 1, &count);
+			if (input.EventType == KEY_EVENT && input.Event.KeyEvent.bKeyDown) {
+				return Key(input.Event.KeyEvent.uChar.UnicodeChar,
+					input.Event.KeyEvent.wVirtualKeyCode);
+			}
+		}
+		return Key();
+#else CHH_IS_LINUX
+		termios oldt, newt;
+		int ch;
+		tcgetattr(STDIN_FILENO, &oldt);
+		newt = oldt;
+		newt.c_lflag &= ~(ICANON | ECHO);
+		tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+		ch = getchar();
+		tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+		return Key(ch, ch);
+#endif
+	}
 
 	bool Application::isMainThread() const {
 		return std::this_thread::get_id() == this->_thrd_id;
@@ -93,20 +122,9 @@ namespace hti {
 	}
 
 	std::string Application::onRender(bool focus) {
-		if (this->isMainThread()) {
-			if (this->children().size() != 1) return "";
-			if (!this->children().front()->visible()) return "";
-			return this->children().front()->onRender(true);
-		}
-		else {
-			std::promise<std::string> prom;
-			this->postEvent(std::make_shared<LambdaEvent>([self = this, &prom](Event*) {
-				if (self->children().size() != 1) prom.set_value("");
-				if (!self->children().front()->visible()) prom.set_value("");
-				prom.set_value(self->children().front()->onRender(true));
-				}));
-			return prom.get_future().get();
-		}
+		if (this->children().size() != 1) return "";
+		if (!this->children().front()->visible()) return "";
+		return this->children().front()->onRender(true);
 	}
 
 	bool Application::onKeyPress(Key key) {
@@ -168,21 +186,14 @@ namespace hti {
 
 	void hti::Application::mainloop() {
 		if (!_should_exit) this->render(); // 先渲染。
-		char higher, lower;
+		Key key;
 		while (!_should_exit) {
 			if (this->processEvent()) this->render(); // 有事件时刷新。
-			if (kbhit()) {
-				lower = getch();
-				if (true/*待实现判断逻辑*/) {
-					this->onKeyPress(lower);
-				}
-				else {
-					higher = getch();
-					this->onKeyPress(higher * 0x100 + lower);
-				}
+			if (!(key = this->getch()).isNone()) {
+				this->onKeyPress(key);
 				this->render(); // 处理按键后刷新。
 			}
-			sleep_ms(15);
+			sleep_ms(50);
 		}
 #if CHH_IS_WINDOWS
 		system("cls");

@@ -32,9 +32,7 @@ namespace hti::widgets {
 	}
 
 	bool List::onKeyPress(Key key) {
-
 		if (this->children_size() == 0) return false;
-
 		if ((*this->_index)->onKeyPress(key)) {
 			return true;
 		}
