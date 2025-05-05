@@ -33,7 +33,9 @@ namespace hti {
             // 如果键名不存在，直接返回键值。
             std::string localize(std::string key) const;
             // 获取当前选中的语言
-            std::string current() const;
+            std::string current_name() const;
+            // 获取当前选中的语言
+            const Language* current() const;
             // 切换语言
             void current(std::string name);
         };
@@ -53,7 +55,7 @@ namespace hti {
         class Text {
             std::vector<std::variant<LocalizingString, std::string>> _parts;
             mutable std::string _cache;
-            mutable std::string _cache_language;
+            mutable const Language* _cache_language;
         public:
             Text();
             Text(const Text& text);
@@ -79,6 +81,21 @@ namespace hti {
     // 事件回调函数
     // 不要释放 Event！EventQueue 会自动释放 Event！
     typedef std::function<void(Event*)> EventFunc;
+
+    typedef unsigned short Style;
+
+    class Key {
+        unsigned short _key;
+    public:
+        Key(unsigned short key);
+        bool isPrev();
+        bool isNext();
+        bool isPress();
+        bool isUp();
+        bool isDown();
+        bool isLeft();
+        bool isRight();
+    };
 
     class Application;
 
@@ -110,10 +127,41 @@ namespace hti {
             std::list<Widget*> _children;
             std::list<Widget*>::iterator _app_iter;
             std::list<Widget*>::iterator _parent_iter;
+            bool _visible;
             friend class Application;
-        public:
-            // 请使用工厂函数Application::make<T>(args...)。
+            // 注意，如果不是主线程则会崩溃。
+            std::list<Widget*>& children();
+        protected:
             Widget(Widget* parent);
+        public:
+            // 获取孩子的迭代器
+            // 注意，如果不是主线程则会崩溃。
+            std::list<Widget*>::iterator children_begin();
+            // 获取孩子的迭代器
+            // 注意，如果不是主线程则会崩溃。
+            std::list<Widget*>::iterator children_end();
+            // 获取孩子大小
+            size_t children_size();
+            template <typename T, typename... Args>
+            // 加入新的子控件并返回
+            // 类似工厂函数。生命周期由 Application 管理！
+            T* add(Args... args) {
+                static_assert(std::is_base_of<Widget, T>::value,
+                    "T must derive from Widget");
+                if (this->children().size() > 0 && this == (Widget*)this->app()) {
+                    throw std::runtime_error("Application can only have one root child");
+                }
+                auto* widget = new T(this, std::forward<Args>(args)...);
+                // 已完成初始化。
+                this->app()->tryPostEvent(std::make_shared<LambdaEvent>([widget](Event*) {
+                    widget->_app_iter = widget->_app->_widgets.insert(
+                        widget->_app->_widgets.end(), widget);
+                    widget->_parent_iter = widget->_parent->_children.insert(
+                        widget->_parent->_children.end(), widget);
+                    widget->_parent->onChildAdd();
+                    }));
+                return widget;
+            }
             // 禁止深复制。
             Widget(const Widget&) = delete;
             // 禁止深复制。
@@ -125,16 +173,21 @@ namespace hti {
             Application* app() const;
             // 获取父控件
             Widget* parent() const;
-            // 获取子控件
-            // 注意，返回的是副本。
-            const std::list<Widget*> children() const;
+            // 获取子控件（副本）
+            const std::list<Widget*> children_copy() const;
+            // 获取当前显示状态
+            bool visible();
+            // 设置当前显示状态
+            void visible(bool visible);
             // 是否可以被选中（常量）
             // 默认返回 false。
             virtual bool canBeSelected() const;
             // 返回渲染内容
+            // 在主线程运行。
             virtual std::string onRender(bool focus);
             // 处理按键
-            virtual bool onKeyPress(char key);
+            // 在主线程运行。
+            virtual bool onKeyPress(Key key);
             // 当添加了一个子控件时
             virtual void onChildAdd();
             // 当获得焦点
@@ -145,9 +198,10 @@ namespace hti {
 
         // 可被选中的（抽象类）
         class SelectableWidget : virtual public Widget {
-        public:
-            // 请使用工厂函数Application::make<T>(args...)。
+            friend class Widget;
+        protected:
             SelectableWidget(Widget* parent);
+        public:
             // 可被选中
             // 返回 true。
             bool canBeSelected() const override;
@@ -156,9 +210,10 @@ namespace hti {
         // 文本控件（抽象类）
         class TextWidget : virtual public Widget {
             i18n::Text _text;
-        public:
-            // 请使用工厂函数Application::make<T>(args...)。
+            friend class Widget;
+        protected:
             TextWidget(Widget* parent, i18n::Text text = {});
+        public:
             virtual ~TextWidget();
             // 返回文字
             i18n::Text text() const;
@@ -168,9 +223,10 @@ namespace hti {
 
         // 文本
         class Label : public TextWidget {
-        public:
-            // 请使用工厂函数Application::make<T>(args...)。
+            friend class Widget;
+        protected:
             Label(Widget* parent, i18n::Text text = {});
+        public:
             // 返回渲染内容
             std::string onRender(bool focus) override;
         };
@@ -180,33 +236,105 @@ namespace hti {
         // 文本
         class Button : public SelectableWidget, public TextWidget {
             WidFunc _action = nullptr;
-        public:
-            // 请使用工厂函数Application::make<T>(args...)。
+            friend class Widget;
+        protected:
             Button(Widget* parent, i18n::Text text = {});
+        public:
             // 返回渲染内容
             std::string onRender(bool focus) override;
             // 绑定回调函数
             void bind(WidFunc action);
             // 处理按键
-            bool onKeyPress(char key) override;
+            bool onKeyPress(Key key) override;
             using SelectableWidget::canBeSelected;
         };
 
         class List : public SelectableWidget {
-            size_t _style = STYLE_VERTICAL;
-            size_t _index = 0;
+            std::list<Widget*>::iterator _index;
+            Style _style;
+            friend class Widget;
+        protected:
+            List(Widget* parent, Style style = STYLE_VERTICAL);
         public:
-            const static size_t STYLE_VERTICAL = 0x0;
-            const static size_t STYLE_HORIZONTAL = 0x1;
-            // 请使用工厂函数Application::make<T>(args...)。
-            List(Widget* parent);
+            // 竖着排列。
+            const static int STYLE_VERTICAL = 0x0;
+            // 横着排列。
+            const static int STYLE_HORIZONTAL = 0x1;
             // 返回渲染内容
             std::string onRender(bool focus) override;
             // 处理按键
-            bool onKeyPress(char key) override;
+            bool onKeyPress(Key key) override;
             // 当添加了一个子控件时
-            // 找到一个能被选中的控件
+            // 找到一个能被选中的控件。
             void onChildAdd() override;
+        };
+
+        // 类似列表，但仅显示当前选中的控件。
+        class Pages : public SelectableWidget {
+            std::list<Widget*>::iterator _index;
+            friend class Widget;
+        protected:
+            Pages(Widget* parent);
+        public:
+            // 返回渲染内容
+            std::string onRender(bool focus) override;
+            // 处理按键
+            bool onKeyPress(Key key) override;
+            // 当添加了一个子控件时
+            // 找到一个能被选中的控件。
+            void onChildAdd() override;
+            // 选择前一个
+            // 返回是否成功。
+            bool selPrev();
+            // 选择后一个
+            // 返回是否成功。
+            bool selNext();
+            // 选择第一个
+            void selBegin();
+            // 选择最后一个
+            void selEnd();
+            // 选择
+            // 效率O(n)！
+            void select(size_t index);
+            // 可被选中
+            // 返回当前控件能否被选中。
+            bool canBeSelected() const override;
+        };
+
+        class PageStack : public TextWidget, public SelectableWidget {
+            typedef std::list<std::pair<i18n::Text, std::list<Widget*>::iterator>> l;
+            l _navigation;
+            l::iterator _it;
+            Pages* _pages;
+            std::map<Key, i18n::Text> _help;
+            Style _style;
+            bool _pos = 0;
+            friend class Widget;
+        protected:
+            PageStack(Widget* parent, i18n::Text title = {}, Style style = STYLE_UP_DOWN);
+            ~PageStack();
+        public:
+            // 上边是导航栏，下边是内容。
+            const static int STYLE_UP_DOWN = 0x0;
+            // 左边是导航栏，右边是内容。（暂时不打算实现）
+            //const static size_t STYLE_LEFT_RIGHT = 0x1;
+            // 在导航栏目添加一个页面。
+            template <typename T, typename... Args>
+            void addPage(i18n::Text name, Args... args) {
+                this->_pages->add<T>((args)...);
+                this->app()->tryPostEvent(std::make_shared<LambdaEvent>([self = this, name](Event* ev) {
+                    auto it = self->_pages->children_end();
+                    it--;
+                    self->_navigation.push_back({ name, it });
+                    if (self->_it == self->_navigation.end()) {
+                        self->_it = self->_navigation.begin();
+                    }
+                    }));
+            }
+            // 处理按键
+            bool onKeyPress(Key key) override;
+            // 返回渲染内容
+            std::string onRender(bool focus) override;
         };
 
     }
@@ -245,22 +373,6 @@ namespace hti {
         void tryPostEvent(std::shared_ptr<Event> event);
 
         /* 控件功能 */
-        // 安全创建新的控件（工厂函数）。
-        template <typename T, typename... Args>
-        T* make(Widget* parent, Args... args) {
-            if (this->children().size() > 0 && parent == this) {
-                throw std::runtime_error("Application can only have one root child! Use List or other layouts.");
-            }
-            auto* widget = new T(parent, std::forward<Args>(args)...);
-            this->tryPostEvent(std::make_shared<LambdaEvent>([widget](Event*) {
-                widget->_app_iter = widget->_app->_widgets.insert(
-                    widget->_app->_widgets.end(), widget);
-                widget->_parent_iter = widget->_parent->_children.insert(
-                    widget->_parent->_children.end(), widget);
-                widget->_parent->onChildAdd();
-                }));
-            return widget;
-        }
         // 渲染
         void render();
         // 主循环
@@ -270,7 +382,7 @@ namespace hti {
         // 渲染根控件
         std::string onRender(bool focus) override;
         // 处理按键
-        bool onKeyPress(char key) override;
+        bool onKeyPress(Key key) override;
 
         /* 语言管理 */
         // 获取语言管理器

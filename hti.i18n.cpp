@@ -42,8 +42,12 @@ namespace hti::i18n {
         return this->_languages.at(this->_current).localize(key);
     }
 
-    std::string LanguageManager::current() const {
+    std::string LanguageManager::current_name() const {
         return this->_current;
+    }
+
+    const Language* LanguageManager::current() const {
+        return &this->_languages.at(this->_current);
     }
 
     LocalizingString::LocalizingString(std::string key) : _key(key) {}

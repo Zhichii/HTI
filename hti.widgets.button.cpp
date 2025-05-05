@@ -15,8 +15,8 @@ namespace hti::widgets {
 		this->_action = action;
 	}
 
-	bool Button::onKeyPress(char key) {
-		if (key == ' ') {
+	bool Button::onKeyPress(Key key) {
+		if (key.isPress()) {
 			if (_action) this->_action(this);
 			return true;
 		}

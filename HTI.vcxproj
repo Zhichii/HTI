@@ -145,6 +145,8 @@
   <ItemGroup>
     <ClCompile Include="chh.cpp" />
     <ClCompile Include="hti.application.cpp" />
+    <ClCompile Include="hti.key.cpp" />
+    <ClCompile Include="hti.widgets.pagestack.cpp" />
     <ClCompile Include="hti.i18n.cpp" />
     <ClCompile Include="hti.widgets.button.cpp" />
     <ClCompile Include="hti.widgets.label.cpp" />

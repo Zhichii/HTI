@@ -3,7 +3,9 @@
 namespace hti::widgets {
 	
 	Widget::Widget(Widget* parent)
-		: _parent(parent), _app(parent ? parent->_app : ((Application*)this)) {}
+		: _parent(parent), _app(parent ? parent->_app : ((Application*)this)) {
+		this->_visible = true;
+	}
 
 	Widget::~Widget() {
 		this->app()->tryPostEvent(std::make_shared<LambdaEvent>([self = this](Event*) {
@@ -25,22 +27,42 @@ namespace hti::widgets {
 		return this->_parent;
 	}
 
-	const std::list<Widget*> Widget::children() const {
-
+	std::list<Widget*>& Widget::children() {
 		if (this->app()->isMainThread()) return this->_children;
+		throw std::runtime_error("This is not main thread!");
+	}
 
+	std::list<Widget*>::iterator Widget::children_begin() { return this->children().begin(); }
+
+	std::list<Widget*>::iterator Widget::children_end() { return this->children().end(); }
+
+	size_t Widget::children_size() {
+		if (this->app()->isMainThread()) return this->_children.size();
+		std::promise<size_t> prom;
+		this->app()->postEvent(std::make_shared<LambdaEvent>([self = this, &prom](Event*) {
+			prom.set_value(self->_children.size());
+			}));
+		return prom.get_future().get();
+	}
+
+	const std::list<Widget*> Widget::children_copy() const {
+		if (this->app()->isMainThread()) return this->_children;
 		std::promise<std::list<Widget*>> prom;
-		this->app()->postEvent(std::make_shared<LambdaEvent>([self=this, &prom](Event*) {
+		this->app()->postEvent(std::make_shared<LambdaEvent>([self = this, &prom](Event*) {
 			prom.set_value(self->_children);
 			}));
 		return prom.get_future().get();
 	}
 
+	bool Widget::visible() { return this->_visible; }
+
+	void Widget::visible(bool visible_) { this->_visible = visible_; }
+
 	bool Widget::canBeSelected() const { return false; }
 
 	inline std::string Widget::onRender(bool focus) { return ""; }
 
-	bool Widget::onKeyPress(char key) { return false; }
+	bool Widget::onKeyPress(Key key) { return false; }
 
 	void Widget::onChildAdd() {}
 
@@ -50,6 +72,7 @@ namespace hti::widgets {
 
 	SelectableWidget::SelectableWidget(Widget* parent)
 		: Widget(parent) {
+
 	}
 
 	bool SelectableWidget::canBeSelected() const { return true; }

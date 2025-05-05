@@ -93,27 +93,26 @@ namespace hti {
 	}
 
 	std::string Application::onRender(bool focus) {
-
-		if (this->isMainThread()) return this->children().front()->onRender(true);
-		
-		std::promise<std::string> prom;
-		this->postEvent(std::make_shared<LambdaEvent>([self=this, &prom](Event*) {
-			if (self->children().size() != 1) prom.set_value("");
-			else prom.set_value(self->children().front()->onRender(true));
-			}));
-		return prom.get_future().get();
+		if (this->isMainThread()) {
+			if (this->children().size() != 1) return "";
+			if (!this->children().front()->visible()) return "";
+			return this->children().front()->onRender(true);
+		}
+		else {
+			std::promise<std::string> prom;
+			this->postEvent(std::make_shared<LambdaEvent>([self = this, &prom](Event*) {
+				if (self->children().size() != 1) prom.set_value("");
+				if (!self->children().front()->visible()) prom.set_value("");
+				prom.set_value(self->children().front()->onRender(true));
+				}));
+			return prom.get_future().get();
+		}
 	}
 
-	bool Application::onKeyPress(char key) {
-		if (key == 'z' or key == 'Z') this->exit(); // 暂时硬绑定 z 退出。
-		if (this->isMainThread()) return this->children().front()->onKeyPress(key);
-
-		std::promise<bool> prom;
-		this->postEvent(std::make_shared<LambdaEvent>([self = this, &prom, key](Event*) {
-			if (self->children().size() != 1) prom.set_value(false);
-			else prom.set_value(self->children().front()->onKeyPress(key));
-			}));
-		return prom.get_future().get();
+	bool Application::onKeyPress(Key key) {
+		if (this->children().size() != 1) return false;
+		if (!this->children().front()->visible()) return false;
+		return this->children().front()->onKeyPress(key);
 	}
 
 	void Application::render() {
@@ -162,10 +161,18 @@ namespace hti {
 
 	void hti::Application::mainloop() {
 		if (!_should_exit) this->render(); // 先渲染。
+		char higher, lower;
 		while (!_should_exit) {
 			if (this->processEvent()) this->render(); // 有事件时刷新。
 			if (kbhit()) {
-				this->onKeyPress(getch());
+				lower = getch();
+				if (true/*待实现判断逻辑*/) {
+					this->onKeyPress(lower);
+				}
+				else {
+					higher = getch();
+					this->onKeyPress(higher * 0x100 + lower);
+				}
 				this->render(); // 处理按键后刷新。
 			}
 			sleep_ms(10);

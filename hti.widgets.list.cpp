@@ -2,85 +2,82 @@
 
 namespace hti::widgets {
 
-	List::List(Widget* parent)
-		: Widget(parent), SelectableWidget(parent), _index(0) { }
+	List::List(Widget* parent, Style style)
+		: Widget(parent), SelectableWidget(parent) {
+		this->app()->tryPostEvent(std::make_shared<LambdaEvent>([self = this, style](Event* ev) {
+			self->_index = self->children_end();
+			self->_style = style;
+			}));
+	}
 
 	std::string List::onRender(bool focus) {
-
 		std::ostringstream output;
-		const auto& childList = this->children();
-		const size_t itemCount = childList.size();
-
-		if (itemCount == 0) return "";
-
-		if (this->_index >= itemCount) {
-			this->_index = itemCount - 1;
-		}
-
+		if ((children_size() == 0) || this->_index == this->children_end()) return "";
 		const std::string separator = (_style == STYLE_VERTICAL) ? "\n" : " ";
 
-		size_t i = 0;
-		for (Widget* child : childList) {
-			if (i > 0) output << separator;
-			output << child->onRender(focus && (this->_index == i));
-			i++;
+		bool first = true;
+		for (auto i = this->children_begin(); i != this->children_end(); i++) {
+			auto child = *i;
+			if (!first) {
+				output << separator;
+			}
+			else first = false;
+			if (child->visible()) {
+				bool is_selected = (i == _index);
+				output << child->onRender(focus && is_selected);
+			}
 		}
 
 		return output.str();
 	}
 
-	bool List::onKeyPress(char key) {
+	bool List::onKeyPress(Key key) {
 
-		const auto& childList = this->children();
-		const size_t itemCount = childList.size();
+		if (this->children_size() == 0) return false;
 
-		if (itemCount == 0) return false;
-
-		auto selectedItem = childList.begin();
-		std::advance(selectedItem, std::min(this->_index, itemCount - 1));
-		if ((*selectedItem)->onKeyPress(key)) {
+		if ((*this->_index)->onKeyPress(key)) {
 			return true;
 		}
 
-		size_t idx = this->_index;
-		// 回退机制
-		if (key == 'w' || key == 'W') {
-			while (this->_index > 0) {
-				selectedItem--;
+		// 回退机制，如果选中的项无法被调用则回退到列表操作。
+		auto old_index = this->_index;
+		if (key.isPrev()) {
+			while (this->_index != this->children_begin()) {
 				this->_index--;
-				if ((*selectedItem)->canBeSelected()) return true;
+				if ((*this->_index)->canBeSelected() &&
+					(*this->_index)->visible()) {
+					return true;
+				}
 			}
-			// 寻找失败。
-			this->_index = idx;
+			// 寻找失败，恢复旧位置。
+			this->_index = old_index;
 		}
-		else if (key == 's' || key == 'S') {
-			while (this->_index + 1 < itemCount) {
-				// 原 (this->_index < itemCount - 1)，
-				// 但 itemCount 减一可能会变成 4294967295。
-				selectedItem++;
+		else if (key.isNext()) {
+			while (std::next(this->_index) != this->children_end()) {
 				this->_index++;
-				if ((*selectedItem)->canBeSelected()) return true;
+				if ((*this->_index)->canBeSelected() &&
+					(*this->_index)->visible()) {
+					return true;
+				}
 			}
-			// 寻找失败。
-			this->_index = idx;
+			// 寻找失败，恢复旧位置。
+			this->_index = old_index;
 		}
 
 		return false;
 	}
 
 	void List::onChildAdd() {
-		const auto& childList = this->children();
-		const size_t itemCount = childList.size();
-		if (itemCount <= 1) return;
-		auto selectedItem = childList.begin();
-		std::advance(selectedItem, std::min(this->_index, itemCount - 1));
-		if ((*selectedItem)->canBeSelected()) return;
-		else {
-			auto lastItem = childList.end();
-			lastItem--;
-			if ((*lastItem)->canBeSelected()) {
-				this->_index = itemCount - 1;
-			}
+		if (this->_index != this->children_end() &&
+			(*this->_index)->canBeSelected() &&
+			(*this->_index)->visible()) {
+			// 如果当前选中的项仍然有效（可选中且可见），则保持不变
+			return;
+		}
+		auto last_item = children_end(); last_item--;
+		// 现在指向最后一个元素。
+		if ((*last_item)->canBeSelected() && (*last_item)->visible()) {
+			this->_index = last_item;
 		}
 	}
 
